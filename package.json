@@ -1,0 +1,45 @@
+{
+    "name": "com.loopkit.sdk",
+    "version": "1.0.0",
+    "displayName": "LoopKit Unity SDK",
+    "description": "Unity SDK for LoopKit analytics platform. Track events, identify users, and manage sessions with comprehensive analytics support.",
+    "unity": "2020.3",
+    "unityRelease": "0f1",
+    "documentationUrl": "https://docs.loopkit.ai/docs/unity-quickstart.html",
+    "keywords": [
+        "analytics",
+        "tracking",
+        "loopkit",
+        "unity",
+        "sdk",
+        "events",
+        "telemetry"
+    ],
+    "author": {
+        "name": "LoopKit Team",
+        "email": "support@loopkit.ai",
+        "url": "https://loopkit.ai"
+    },
+    "type": "library",
+    "hideInEditor": false,
+    "testables": [
+        "com.loopkit.sdk"
+    ],
+    "samples": [
+        {
+            "displayName": "Super Basic Example",
+            "description": "Super basic example of LoopKit SDK usage",
+            "path": "Samples~/SuperBasicExample"
+        },
+        {
+            "displayName": "Basic Usage",
+            "description": "Basic examples of LoopKit SDK usage",
+            "path": "Samples~/BasicUsage"
+        },
+        {
+            "displayName": "Advanced Features",
+            "description": "Advanced usage examples including session management",
+            "path": "Samples~/AdvancedFeatures"
+        }
+    ]
+}
