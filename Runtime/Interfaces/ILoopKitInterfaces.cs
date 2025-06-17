@@ -283,6 +283,11 @@ namespace LoopKit
         void SetupApplicationLifecycleTracking();
 
         /// <summary>
+        /// Setup FPS tracking
+        /// </summary>
+        void SetupFpsTracking();
+
+        /// <summary>
         /// Set network manager reference
         /// </summary>
         /// <param name="networkManager">Network manager</param>

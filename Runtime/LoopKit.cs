@@ -162,6 +162,15 @@ namespace LoopKit
                     config.sessionTimeout != 0 ? config.sessionTimeout : _config.sessionTimeout,
                 enableErrorTracking = config.enableErrorTracking,
                 enableSceneTracking = config.enableSceneTracking,
+                enableFpsTracking = config.enableFpsTracking,
+                fpsSampleInterval =
+                    config.fpsSampleInterval != 0
+                        ? config.fpsSampleInterval
+                        : _config.fpsSampleInterval,
+                fpsReportInterval =
+                    config.fpsReportInterval != 0
+                        ? config.fpsReportInterval
+                        : _config.fpsReportInterval,
                 enableLocalStorage = config.enableLocalStorage,
                 respectDoNotTrack = config.respectDoNotTrack,
                 debug = config.debug,

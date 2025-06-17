@@ -148,6 +148,10 @@ namespace LoopKit.Editor
                         config.FindPropertyRelative("enableErrorTracking"),
                         new GUIContent("Error Tracking")
                     );
+                    EditorGUILayout.PropertyField(
+                        config.FindPropertyRelative("enableFpsTracking"),
+                        new GUIContent("FPS Tracking")
+                    );
                 }
 
                 EditorGUI.indentLevel--;

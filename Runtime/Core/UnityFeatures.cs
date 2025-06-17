@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using LoopKit.Utils;
 using UnityEngine;
@@ -22,6 +23,12 @@ namespace LoopKit.Core
         private bool _isSetup = false;
         private string _previousSceneName;
 
+        // FPS tracking
+        private List<float> _fpssamples;
+        private float _lastFpsSampleTime;
+        private float _lastFpsReportTime;
+        private Coroutine _fpsTrackingCoroutine;
+
         public UnityFeatures(
             LoopKitConfig config,
             ILogger logger,
@@ -38,6 +45,9 @@ namespace LoopKit.Core
             _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
 
             _previousSceneName = SceneManager.GetActiveScene().name;
+            _fpssamples = new List<float>();
+            _lastFpsSampleTime = Time.unscaledTime;
+            _lastFpsReportTime = Time.unscaledTime;
         }
 
         /// <summary>
@@ -47,11 +57,9 @@ namespace LoopKit.Core
         {
             if (_isSetup)
             {
-                _logger.Debug("Unity features already set up");
+                _logger.Debug("Unity features already setup, skipping");
                 return;
             }
-
-            _logger.Info("Setting up Unity features");
 
             try
             {
@@ -67,6 +75,11 @@ namespace LoopKit.Core
 
                 SetupApplicationLifecycleTracking();
 
+                if (_config.enableFpsTracking)
+                {
+                    SetupFpsTracking();
+                }
+
                 _isSetup = true;
                 _logger.Info("Unity features setup completed");
             }
@@ -77,7 +90,7 @@ namespace LoopKit.Core
         }
 
         /// <summary>
-        /// Setup scene change tracking
+        /// Setup scene tracking
         /// </summary>
         public void SetupSceneTracking()
         {
@@ -86,11 +99,11 @@ namespace LoopKit.Core
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 SceneManager.sceneUnloaded += OnSceneUnloaded;
 
-                _logger.Debug("Scene tracking enabled");
-
-                // Track initial scene load
+                // Track initial scene as loaded
                 var currentScene = SceneManager.GetActiveScene();
                 TrackSceneEvent("scene_loaded", currentScene);
+
+                _logger.Debug("Scene tracking enabled");
             }
             catch (Exception ex)
             {
@@ -141,6 +154,131 @@ namespace LoopKit.Core
             catch (Exception ex)
             {
                 _logger.Error("Failed to setup application lifecycle tracking", ex);
+            }
+        }
+
+        /// <summary>
+        /// Setup FPS tracking
+        /// </summary>
+        public void SetupFpsTracking()
+        {
+            try
+            {
+                if (_fpsTrackingCoroutine != null)
+                {
+                    return; // Already started
+                }
+
+                // Start FPS tracking coroutine on a MonoBehaviour
+                var gameObject = new GameObject("LoopKit_FPSTracker");
+                gameObject.hideFlags = HideFlags.HideAndDontSave;
+                UnityEngine.Object.DontDestroyOnLoad(gameObject);
+
+                var fpsTracker = gameObject.AddComponent<FpsTracker>();
+                fpsTracker.Initialize(this);
+
+                _logger.Debug("FPS tracking enabled");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to setup FPS tracking", ex);
+            }
+        }
+
+        /// <summary>
+        /// Sample current FPS
+        /// </summary>
+        public void SampleFps()
+        {
+            var currentTime = Time.unscaledTime;
+
+            // Check if it's time to sample
+            if (currentTime - _lastFpsSampleTime >= _config.fpsSampleInterval)
+            {
+                var fps = 1f / Time.unscaledDeltaTime;
+                _fpssamples.Add(fps);
+                _lastFpsSampleTime = currentTime;
+
+                // Check if it's time to report
+                if (currentTime - _lastFpsReportTime >= _config.fpsReportInterval)
+                {
+                    ReportFpsData();
+                    _lastFpsReportTime = currentTime;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Report collected FPS data
+        /// </summary>
+        private void ReportFpsData()
+        {
+            if (_fpssamples.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                // Calculate FPS statistics
+                var sum = 0f;
+                var min = float.MaxValue;
+                var max = float.MinValue;
+
+                foreach (var fps in _fpssamples)
+                {
+                    sum += fps;
+                    if (fps < min)
+                        min = fps;
+                    if (fps > max)
+                        max = fps;
+                }
+
+                var avg = sum / _fpssamples.Count;
+
+                // Calculate median
+                var sortedFps = new List<float>(_fpssamples);
+                sortedFps.Sort();
+                var median =
+                    sortedFps.Count % 2 == 0
+                        ? (sortedFps[sortedFps.Count / 2 - 1] + sortedFps[sortedFps.Count / 2]) / 2f
+                        : sortedFps[sortedFps.Count / 2];
+
+                // Count low FPS samples (below 30 FPS)
+                var lowFpsCount = 0;
+                foreach (var fps in _fpssamples)
+                {
+                    if (fps < 30f)
+                        lowFpsCount++;
+                }
+
+                var lowFpsPercentage = (lowFpsCount / (float)_fpssamples.Count) * 100f;
+
+                var properties = new Dictionary<string, object>
+                {
+                    ["fps_avg"] = Math.Round(avg, 2),
+                    ["fps_min"] = Math.Round(min, 2),
+                    ["fps_max"] = Math.Round(max, 2),
+                    ["fps_median"] = Math.Round(median, 2),
+                    ["fps_samples_count"] = _fpssamples.Count,
+                    ["fps_low_percentage"] = Math.Round(lowFpsPercentage, 2),
+                    ["sample_duration"] = _config.fpsReportInterval,
+                    ["scene_name"] = SceneManager.GetActiveScene().name,
+                    ["platform"] = Application.platform.ToString(),
+                };
+
+                _eventTracker.Track("fps_report", properties, null, null);
+
+                _logger.Debug(
+                    $"FPS report: avg={avg:F1}, min={min:F1}, max={max:F1}, samples={_fpssamples.Count}"
+                );
+
+                // Clear samples for next report
+                _fpssamples.Clear();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to report FPS data", ex);
             }
         }
 
@@ -419,6 +557,33 @@ namespace LoopKit.Core
             {
                 _logger.Error("Error during Unity features cleanup", ex);
             }
+        }
+    }
+
+    /// <summary>
+    /// MonoBehaviour component for FPS tracking
+    /// Handles Update loop for FPS sampling
+    /// </summary>
+    internal class FpsTracker : MonoBehaviour
+    {
+        private UnityFeatures _unityFeatures;
+
+        public void Initialize(UnityFeatures unityFeatures)
+        {
+            _unityFeatures = unityFeatures;
+        }
+
+        private void Update()
+        {
+            if (_unityFeatures != null)
+            {
+                _unityFeatures.SampleFps();
+            }
+        }
+
+        private void OnDestroy()
+        {
+            _unityFeatures = null;
         }
     }
 }

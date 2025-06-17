@@ -68,22 +68,36 @@ Just by adding the LoopKitManager component, you automatically get these metrics
 - `app_paused` - When the app goes to background
 - `app_resumed` - When the app returns to foreground
 
+#### **Application Focus Events**
+
+- `application_focus_gained` - When the app gains focus
+- `application_focus_lost` - When the app loses focus
+- `application_start` - When the application starts
+- `application_quit` - When the application is quitting
+
 #### **Session Management**
 
+- `session_start` - When a new session begins
+- `session_end` - When a session ends (timeout or manual)
 - Automatic session tracking with 30-minute timeout
-- Session start/end events
 - Cross-scene session persistence
-
-#### **Error Tracking** (if enabled)
-
-- Automatic Unity error and exception tracking
-- Error details with stack traces and scene context
 
 #### **Scene Tracking** (if enabled)
 
 - `scene_loaded` - When a new scene loads
 - `scene_unloaded` - When a scene is unloaded
 - Scene metadata (name, build index, load mode)
+
+#### **Error Tracking** (if enabled)
+
+- `error` - Automatic Unity error and exception tracking
+- Error details with stack traces and scene context
+
+#### **Performance Tracking** (if enabled)
+
+- `fps_report` - Automatic FPS performance reports with statistics
+- Includes average, min, max, median FPS and low FPS percentage
+- Configurable sampling and reporting intervals
 
 #### **System Context** (included with all events)
 
@@ -135,6 +149,7 @@ The LoopKitManager component provides these configuration options:
 - **Session Tracking**: Enable automatic session management (default: true)
 - **Scene Tracking**: Track scene changes automatically (default: true)
 - **Error Tracking**: Track Unity errors automatically (default: true)
+- **FPS Tracking**: Track performance metrics automatically (default: true)
 
 ## Samples
 

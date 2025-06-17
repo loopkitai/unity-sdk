@@ -79,6 +79,17 @@ namespace LoopKit
         [Tooltip("Enable automatic scene change tracking")]
         public bool enableSceneTracking = true;
 
+        [Tooltip("Enable automatic FPS tracking")]
+        public bool enableFpsTracking = true;
+
+        [Tooltip("How often to sample FPS (in seconds)")]
+        [Range(0.1f, 5f)]
+        public float fpsSampleInterval = 1f;
+
+        [Tooltip("How often to report FPS data (in seconds)")]
+        [Range(5f, 300f)]
+        public float fpsReportInterval = 30f;
+
         [Header("Storage and Privacy")]
         [Tooltip("Enable local storage for event persistence")]
         public bool enableLocalStorage = true;
