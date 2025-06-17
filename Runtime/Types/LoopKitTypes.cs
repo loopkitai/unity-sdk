@@ -90,6 +90,12 @@ namespace LoopKit
         [Range(5f, 300f)]
         public float fpsReportInterval = 30f;
 
+        [Tooltip("Enable automatic memory warning tracking")]
+        public bool enableMemoryTracking = true;
+
+        [Tooltip("Enable automatic network connectivity tracking")]
+        public bool enableNetworkTracking = true;
+
         [Header("Storage and Privacy")]
         [Tooltip("Enable local storage for event persistence")]
         public bool enableLocalStorage = true;

@@ -52,10 +52,8 @@ namespace LoopKit.Core
                 );
 
                 // Add detailed payload logging for debugging 400 errors
-                _logger.Info($"PAYLOAD DEBUG - Endpoint: {endpoint}");
-                _logger.Info($"PAYLOAD DEBUG - JSON: {jsonData}");
-                Debug.Log($"[LoopKit] PAYLOAD DEBUG - Endpoint: {endpoint}");
-                Debug.Log($"[LoopKit] PAYLOAD DEBUG - JSON: {jsonData}");
+                _logger.Debug($"PAYLOAD DEBUG - Endpoint: {endpoint}");
+                _logger.Debug($"PAYLOAD DEBUG - JSON: {jsonData}");
 
                 using (var request = new UnityWebRequest(url, "POST"))
                 {

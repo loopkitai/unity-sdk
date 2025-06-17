@@ -103,7 +103,10 @@ namespace LoopKit
                 // Initialize LoopKit
                 LoopKit.Instance.Init(apiKey, config);
 
-                Debug.Log("[LoopKit] Successfully initialized from LoopKitManager");
+                if (config.debug)
+                {
+                    Debug.Log("[LoopKit] Successfully initialized from LoopKitManager");
+                }
 
                 // Track initialization event
                 Track(
@@ -133,7 +136,10 @@ namespace LoopKit
             }
             else
             {
-                Debug.LogWarning("[LoopKit] Cannot track event - LoopKit not configured!");
+                if (config.debug)
+                {
+                    Debug.LogWarning("[LoopKit] Cannot track event - LoopKit not configured!");
+                }
             }
         }
 
@@ -148,7 +154,10 @@ namespace LoopKit
             }
             else
             {
-                Debug.LogWarning("[LoopKit] Cannot identify user - LoopKit not configured!");
+                if (config.debug)
+                {
+                    Debug.LogWarning("[LoopKit] Cannot identify user - LoopKit not configured!");
+                }
             }
         }
 
@@ -167,7 +176,10 @@ namespace LoopKit
             }
             else
             {
-                Debug.LogWarning("[LoopKit] Cannot group user - LoopKit not configured!");
+                if (config.debug)
+                {
+                    Debug.LogWarning("[LoopKit] Cannot group user - LoopKit not configured!");
+                }
             }
         }
 
@@ -182,7 +194,10 @@ namespace LoopKit
             if (IsConfigured)
             {
                 LoopKit.Instance.Configure(config);
-                Debug.Log("[LoopKit] Configuration updated");
+                if (config.debug)
+                {
+                    Debug.Log("[LoopKit] Configuration updated");
+                }
             }
         }
 

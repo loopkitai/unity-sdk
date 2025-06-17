@@ -171,6 +171,8 @@ namespace LoopKit
                     config.fpsReportInterval != 0
                         ? config.fpsReportInterval
                         : _config.fpsReportInterval,
+                enableMemoryTracking = config.enableMemoryTracking,
+                enableNetworkTracking = config.enableNetworkTracking,
                 enableLocalStorage = config.enableLocalStorage,
                 respectDoNotTrack = config.respectDoNotTrack,
                 debug = config.debug,

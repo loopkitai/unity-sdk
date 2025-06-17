@@ -29,6 +29,11 @@ namespace LoopKit.Core
         private float _lastFpsReportTime;
         private Coroutine _fpsTrackingCoroutine;
 
+        // Network tracking
+        private NetworkReachability _lastNetworkReachability;
+        private float _lastNetworkCheckTime;
+        private const float NETWORK_CHECK_INTERVAL = 5f; // Check every 5 seconds
+
         public UnityFeatures(
             LoopKitConfig config,
             ILogger logger,
@@ -48,6 +53,10 @@ namespace LoopKit.Core
             _fpssamples = new List<float>();
             _lastFpsSampleTime = Time.unscaledTime;
             _lastFpsReportTime = Time.unscaledTime;
+
+            // Initialize network tracking
+            _lastNetworkReachability = Application.internetReachability;
+            _lastNetworkCheckTime = Time.unscaledTime;
         }
 
         /// <summary>
@@ -78,6 +87,16 @@ namespace LoopKit.Core
                 if (_config.enableFpsTracking)
                 {
                     SetupFpsTracking();
+                }
+
+                if (_config.enableMemoryTracking)
+                {
+                    SetupMemoryTracking();
+                }
+
+                if (_config.enableNetworkTracking)
+                {
+                    SetupNetworkTracking();
                 }
 
                 _isSetup = true;
@@ -186,6 +205,53 @@ namespace LoopKit.Core
         }
 
         /// <summary>
+        /// Setup memory warning tracking
+        /// </summary>
+        public void SetupMemoryTracking()
+        {
+            try
+            {
+                Application.lowMemory += OnLowMemory;
+
+                _logger.Debug("Memory tracking enabled");
+
+                // Track initial memory status
+                TrackMemoryEvent(
+                    "memory_status",
+                    new Dictionary<string, object>
+                    {
+                        ["system_memory_mb"] = UnityEngine.SystemInfo.systemMemorySize,
+                        ["graphics_memory_mb"] = UnityEngine.SystemInfo.graphicsMemorySize,
+                        ["available_memory_mb"] = GetAvailableMemory(),
+                        ["device_model"] = UnityEngine.SystemInfo.deviceModel,
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to setup memory tracking", ex);
+            }
+        }
+
+        /// <summary>
+        /// Setup network connectivity tracking
+        /// </summary>
+        public void SetupNetworkTracking()
+        {
+            try
+            {
+                // Track initial network status
+                TrackNetworkEvent("network_status", Application.internetReachability);
+
+                _logger.Debug("Network tracking enabled");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to setup network tracking", ex);
+            }
+        }
+
+        /// <summary>
         /// Sample current FPS
         /// </summary>
         public void SampleFps()
@@ -205,6 +271,16 @@ namespace LoopKit.Core
                     ReportFpsData();
                     _lastFpsReportTime = currentTime;
                 }
+            }
+
+            // Check network connectivity periodically
+            if (
+                _config.enableNetworkTracking
+                && currentTime - _lastNetworkCheckTime >= NETWORK_CHECK_INTERVAL
+            )
+            {
+                CheckNetworkConnectivity();
+                _lastNetworkCheckTime = currentTime;
             }
         }
 
@@ -279,6 +355,159 @@ namespace LoopKit.Core
             catch (Exception ex)
             {
                 _logger.Error("Failed to report FPS data", ex);
+            }
+        }
+
+        /// <summary>
+        /// Check for network connectivity changes
+        /// </summary>
+        private void CheckNetworkConnectivity()
+        {
+            try
+            {
+                var currentReachability = Application.internetReachability;
+
+                if (currentReachability != _lastNetworkReachability)
+                {
+                    // Network status changed
+                    var eventName =
+                        currentReachability == NetworkReachability.NotReachable
+                            ? "network_connection_lost"
+                            : "network_connection_restored";
+
+                    TrackNetworkEvent(eventName, currentReachability);
+
+                    _lastNetworkReachability = currentReachability;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to check network connectivity", ex);
+            }
+        }
+
+        /// <summary>
+        /// Handle low memory warning
+        /// </summary>
+        private void OnLowMemory()
+        {
+            try
+            {
+                TrackMemoryEvent(
+                    "low_memory_warning",
+                    new Dictionary<string, object>
+                    {
+                        ["system_memory_mb"] = UnityEngine.SystemInfo.systemMemorySize,
+                        ["graphics_memory_mb"] = UnityEngine.SystemInfo.graphicsMemorySize,
+                        ["available_memory_mb"] = GetAvailableMemory(),
+                        ["scene_name"] = SceneManager.GetActiveScene().name,
+                    }
+                );
+
+                _logger.Warn("Low memory warning detected");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to track low memory warning", ex);
+            }
+        }
+
+        /// <summary>
+        /// Get available memory estimate (Unity doesn't provide direct access)
+        /// </summary>
+        private long GetAvailableMemory()
+        {
+            try
+            {
+                // Unity doesn't provide direct access to available memory
+                // We can use GC.GetTotalMemory as a rough estimate of managed memory usage
+                var managedMemoryBytes = System.GC.GetTotalMemory(false);
+                var managedMemoryMB = managedMemoryBytes / (1024 * 1024);
+
+                // Return system memory minus our estimated usage
+                var systemMemoryMB = UnityEngine.SystemInfo.systemMemorySize;
+                return Math.Max(0, systemMemoryMB - managedMemoryMB);
+            }
+            catch
+            {
+                return -1; // Unknown
+            }
+        }
+
+        /// <summary>
+        /// Track memory-related events
+        /// </summary>
+        private void TrackMemoryEvent(string eventName, Dictionary<string, object> properties)
+        {
+            try
+            {
+                var eventProperties = properties ?? new Dictionary<string, object>();
+
+                // Add common memory context
+                if (!eventProperties.ContainsKey("system_memory_mb"))
+                {
+                    eventProperties["system_memory_mb"] = UnityEngine.SystemInfo.systemMemorySize;
+                }
+                if (!eventProperties.ContainsKey("graphics_memory_mb"))
+                {
+                    eventProperties["graphics_memory_mb"] = UnityEngine
+                        .SystemInfo
+                        .graphicsMemorySize;
+                }
+                if (!eventProperties.ContainsKey("platform"))
+                {
+                    eventProperties["platform"] = Application.platform.ToString();
+                }
+
+                _eventTracker.Track(eventName, eventProperties, null, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to track memory event: {eventName}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Track network-related events
+        /// </summary>
+        private void TrackNetworkEvent(string eventName, NetworkReachability reachability)
+        {
+            try
+            {
+                var properties = new Dictionary<string, object>
+                {
+                    ["network_reachability"] = reachability.ToString(),
+                    ["is_connected"] = reachability != NetworkReachability.NotReachable,
+                    ["connection_type"] = GetConnectionType(reachability),
+                    ["platform"] = Application.platform.ToString(),
+                    ["scene_name"] = SceneManager.GetActiveScene().name,
+                };
+
+                _eventTracker.Track(eventName, properties, null, null);
+
+                _logger.Debug($"Network event: {eventName} ({reachability})");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to track network event: {eventName}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Get human-readable connection type
+        /// </summary>
+        private string GetConnectionType(NetworkReachability reachability)
+        {
+            switch (reachability)
+            {
+                case NetworkReachability.NotReachable:
+                    return "none";
+                case NetworkReachability.ReachableViaCarrierDataNetwork:
+                    return "cellular";
+                case NetworkReachability.ReachableViaLocalAreaNetwork:
+                    return "wifi";
+                default:
+                    return "unknown";
             }
         }
 
@@ -360,11 +589,7 @@ namespace LoopKit.Core
 
                 TrackApplicationEvent(
                     eventName,
-                    new Dictionary<string, object>
-                    {
-                        ["has_focus"] = hasFocus,
-                        ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                    }
+                    new Dictionary<string, object> { ["has_focus"] = hasFocus }
                 );
 
                 // Update session activity when app gains focus
@@ -388,13 +613,7 @@ namespace LoopKit.Core
             {
                 _logger.Info("Application quitting, flushing events");
 
-                TrackApplicationEvent(
-                    "application_quit",
-                    new Dictionary<string, object>
-                    {
-                        ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                    }
-                );
+                TrackApplicationEvent("application_quit");
 
                 // End current session
                 _sessionManager.EndSession();
@@ -476,7 +695,6 @@ namespace LoopKit.Core
                     ["scene_path"] = scene.path,
                     ["scene_is_loaded"] = scene.isLoaded,
                     ["scene_is_valid"] = scene.IsValid(),
-                    ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                 };
 
                 // Add additional properties if provided
@@ -514,13 +732,6 @@ namespace LoopKit.Core
                 eventProperties["platform"] = Application.platform.ToString();
                 eventProperties["is_editor"] = Application.isEditor;
 
-                if (!eventProperties.ContainsKey("timestamp"))
-                {
-                    eventProperties["timestamp"] = DateTime.UtcNow.ToString(
-                        "yyyy-MM-ddTHH:mm:ss.fffZ"
-                    );
-                }
-
                 _eventTracker.Track(eventName, eventProperties, null, null);
             }
             catch (Exception ex)
@@ -545,6 +756,11 @@ namespace LoopKit.Core
                 if (_config.enableErrorTracking)
                 {
                     Application.logMessageReceived -= OnLogMessageReceived;
+                }
+
+                if (_config.enableMemoryTracking)
+                {
+                    Application.lowMemory -= OnLowMemory;
                 }
 
                 Application.focusChanged -= OnApplicationFocusChanged;

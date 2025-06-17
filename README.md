@@ -14,7 +14,7 @@ This is the recommended installation method for Unity projects.
 4. Select **Add package from git URL...**
 5. Enter the following URL:
    ```
-   https://github.com/loopkitai/unity-sdk.git
+   git@github.com:loopkitai/unity-sdk.git
    ```
 
 ### Method 2: Manual Package Manager
@@ -24,7 +24,7 @@ This is the recommended installation method for Unity projects.
 3. Open the `manifest.json` file in a text editor
 4. Add the following line to the `dependencies` section:
    ```json
-   "com.loopkit.sdk": "https://github.com/loopkitai/unity-sdk.git"
+   "com.loopkit.sdk": "git@github.com:loopkitai/unity-sdk.git"
    ```
 5. Save the file and return to Unity
 6. Unity will automatically download and install the package
@@ -34,7 +34,7 @@ This is the recommended installation method for Unity projects.
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/loopkitai/unity-sdk.git
+   git clone git@github.com:loopkitai/unity-sdk.git
    ```
 
 2. In Unity, go to **Window** → **Package Manager**
@@ -99,6 +99,19 @@ Just by adding the LoopKitManager component, you automatically get these metrics
 - Includes average, min, max, median FPS and low FPS percentage
 - Configurable sampling and reporting intervals
 
+#### **Memory Tracking** (if enabled)
+
+- `low_memory_warning` - When device memory is running low
+- `memory_status` - Initial memory status on startup
+- Includes system memory, graphics memory, and available memory
+
+#### **Network Tracking** (if enabled)
+
+- `network_connection_lost` - When internet connection is lost
+- `network_connection_restored` - When internet connection is restored
+- `network_status` - Initial network status on startup
+- Includes connection type (wifi, cellular, none) and reachability status
+
 #### **System Context** (included with all events)
 
 - Platform information (iOS, Android, etc.)
@@ -150,6 +163,8 @@ The LoopKitManager component provides these configuration options:
 - **Scene Tracking**: Track scene changes automatically (default: true)
 - **Error Tracking**: Track Unity errors automatically (default: true)
 - **FPS Tracking**: Track performance metrics automatically (default: true)
+- **Memory Tracking**: Track memory warnings automatically (default: true)
+- **Network Tracking**: Track connectivity changes automatically (default: true)
 
 ## Samples
 
