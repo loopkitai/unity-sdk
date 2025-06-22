@@ -12,7 +12,7 @@ namespace LoopKit.Utils
         /// <summary>
         /// Current SDK version - update this when releasing new versions
         /// </summary>
-        public const string VERSION = "1.0.2";
+        public const string VERSION = "1.0.3";
 
         /// <summary>
         /// Package name for Unity Package Manager
