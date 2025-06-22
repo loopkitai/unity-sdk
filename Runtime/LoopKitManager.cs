@@ -184,6 +184,71 @@ namespace LoopKit
         }
 
         /// <summary>
+        /// Enable event tracking through the manager
+        /// </summary>
+        public void EnableTracking()
+        {
+            if (IsConfigured)
+            {
+                LoopKitAPI.EnableTracking();
+                if (config.debug)
+                {
+                    Debug.Log("[LoopKit] Event tracking enabled");
+                }
+            }
+            else
+            {
+                if (config.debug)
+                {
+                    Debug.LogWarning("[LoopKit] Cannot enable tracking - LoopKit not configured!");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Disable event tracking through the manager
+        /// </summary>
+        public void DisableTracking()
+        {
+            if (IsConfigured)
+            {
+                LoopKitAPI.DisableTracking();
+                if (config.debug)
+                {
+                    Debug.Log("[LoopKit] Event tracking disabled");
+                }
+            }
+            else
+            {
+                if (config.debug)
+                {
+                    Debug.LogWarning("[LoopKit] Cannot disable tracking - LoopKit not configured!");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Check if event tracking is currently enabled through the manager
+        /// </summary>
+        public bool IsTrackingEnabled()
+        {
+            if (IsConfigured)
+            {
+                return LoopKitAPI.IsTrackingEnabled();
+            }
+            else
+            {
+                if (config.debug)
+                {
+                    Debug.LogWarning(
+                        "[LoopKit] Cannot check tracking status - LoopKit not configured!"
+                    );
+                }
+                return false; // Default to false if not configured
+            }
+        }
+
+        /// <summary>
         /// Update configuration at runtime
         /// </summary>
         public void UpdateConfiguration(LoopKitConfig newConfig)

@@ -15,10 +15,12 @@ namespace LoopKit
     public class LoopKit : ILoopKit
     {
         public const string VERSION = VersionInfo.VERSION;
+        private const string TRACKING_ENABLED_PREF_KEY = "LoopKit_TrackingEnabled";
 
         // Core configuration
         private LoopKitConfig _config;
         private bool _initialized = false;
+        private bool _trackingEnabled = true; // Default value, will be loaded from prefs
 
         // User context
         private string _userId;
@@ -73,6 +75,9 @@ namespace LoopKit
             ConfigValidator.Validate(_config);
             _config = ConfigValidator.Sanitize(_config);
 
+            // Load tracking state from PlayerPrefs (defaults to enabled if not set)
+            _trackingEnabled = PlayerPrefs.GetInt(TRACKING_ENABLED_PREF_KEY, 1) == 1;
+
             // Initialize core components
             _logger = new Logger(_config);
             _idGenerator = new IdGenerator();
@@ -116,6 +121,7 @@ namespace LoopKit
                     apiKey = _config.apiKey.Substring(0, Math.Min(8, _config.apiKey.Length))
                         + "...",
                     platform = Application.platform.ToString(),
+                    trackingEnabled = _trackingEnabled,
                 }
             );
 
@@ -208,6 +214,47 @@ namespace LoopKit
         }
 
         /// <summary>
+        /// Enable event tracking
+        /// </summary>
+        public ILoopKit EnableTracking()
+        {
+            ThrowIfNotInitialized();
+
+            _trackingEnabled = true;
+            PlayerPrefs.SetInt(TRACKING_ENABLED_PREF_KEY, 1);
+            PlayerPrefs.Save();
+
+            _logger.Info("Event tracking enabled and saved to preferences");
+
+            return this;
+        }
+
+        /// <summary>
+        /// Disable event tracking
+        /// </summary>
+        public ILoopKit DisableTracking()
+        {
+            ThrowIfNotInitialized();
+
+            _trackingEnabled = false;
+            PlayerPrefs.SetInt(TRACKING_ENABLED_PREF_KEY, 0);
+            PlayerPrefs.Save();
+
+            _logger.Info("Event tracking disabled and saved to preferences");
+
+            return this;
+        }
+
+        /// <summary>
+        /// Check if event tracking is currently enabled
+        /// </summary>
+        public bool IsTrackingEnabled()
+        {
+            ThrowIfNotInitialized();
+            return _trackingEnabled;
+        }
+
+        /// <summary>
         /// Track an event
         /// </summary>
         public ILoopKit Track(
@@ -217,6 +264,12 @@ namespace LoopKit
         )
         {
             ThrowIfNotInitialized();
+
+            if (!_trackingEnabled)
+            {
+                _logger.Debug($"Tracking disabled, skipping event: {eventName}");
+                return this;
+            }
 
             if (string.IsNullOrEmpty(eventName))
             {
@@ -244,6 +297,12 @@ namespace LoopKit
         {
             ThrowIfNotInitialized();
 
+            if (!_trackingEnabled)
+            {
+                _logger.Debug("Tracking disabled, skipping event batch");
+                return this;
+            }
+
             if (events == null || events.Count == 0)
             {
                 _logger.Warn("Event batch is null or empty");
@@ -267,6 +326,12 @@ namespace LoopKit
         public ILoopKit Identify(string userId, Dictionary<string, object> properties = null)
         {
             ThrowIfNotInitialized();
+
+            if (!_trackingEnabled)
+            {
+                _logger.Debug($"Tracking disabled, skipping identify for user: {userId}");
+                return this;
+            }
 
             if (string.IsNullOrEmpty(userId))
             {
@@ -301,6 +366,12 @@ namespace LoopKit
         )
         {
             ThrowIfNotInitialized();
+
+            if (!_trackingEnabled)
+            {
+                _logger.Debug($"Tracking disabled, skipping group association: {groupId}");
+                return this;
+            }
 
             if (string.IsNullOrEmpty(groupId))
             {
@@ -358,6 +429,11 @@ namespace LoopKit
             _groupId = null;
             _groupProperties.Clear();
 
+            // Reset tracking state to default and save to prefs
+            _trackingEnabled = true;
+            PlayerPrefs.SetInt(TRACKING_ENABLED_PREF_KEY, 1);
+            PlayerPrefs.Save();
+
             // Reset components
             _queueManager?.Reset();
             _sessionManager?.Reset();
@@ -401,6 +477,30 @@ namespace LoopKit
         public static ILoopKit Init(string apiKey, LoopKitConfig config = null)
         {
             return LoopKit.Instance.Init(apiKey, config);
+        }
+
+        /// <summary>
+        /// Enable event tracking
+        /// </summary>
+        public static ILoopKit EnableTracking()
+        {
+            return LoopKit.Instance.EnableTracking();
+        }
+
+        /// <summary>
+        /// Disable event tracking
+        /// </summary>
+        public static ILoopKit DisableTracking()
+        {
+            return LoopKit.Instance.DisableTracking();
+        }
+
+        /// <summary>
+        /// Check if event tracking is currently enabled
+        /// </summary>
+        public static bool IsTrackingEnabled()
+        {
+            return LoopKit.Instance.IsTrackingEnabled();
         }
 
         /// <summary>
