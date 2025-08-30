@@ -216,6 +216,7 @@ namespace LoopKit.Core
                 name = eventName,
                 properties = properties ?? new Dictionary<string, object>(),
                 anonymousId = _sessionManager.GetAnonymousId(),
+                sessionId = _sessionManager.GetSessionId(),
                 timestamp = GetTimestamp(options),
                 system = CreateSystemInfo(),
                 userId = ExtractUserId(userContext),
@@ -247,6 +248,7 @@ namespace LoopKit.Core
                 userId = userId,
                 properties = properties ?? new Dictionary<string, object>(),
                 anonymousId = _sessionManager.GetAnonymousId(),
+                sessionId = _sessionManager.GetSessionId(),
                 timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                 system = CreateSystemInfo(),
             };
