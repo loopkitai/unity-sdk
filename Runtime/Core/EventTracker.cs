@@ -268,6 +268,7 @@ namespace LoopKit.Core
                 groupType = groupType ?? "organization",
                 properties = properties ?? new Dictionary<string, object>(),
                 anonymousId = _sessionManager.GetAnonymousId(),
+                sessionId = _sessionManager.GetSessionId(),
                 timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                 system = CreateSystemInfo(),
                 userId = ExtractUserId(userContext),
@@ -284,7 +285,6 @@ namespace LoopKit.Core
             return new SystemInfo
             {
                 sdk = new SDKInfo { name = "unity", version = Utils.VersionInfo.VERSION },
-                sessionId = _sessionManager.GetSessionId(),
                 context = new ContextInfo
                 {
                     scene = new SceneInfo

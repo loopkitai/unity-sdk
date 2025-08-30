@@ -128,7 +128,6 @@ namespace LoopKit
     public class SystemInfo
     {
         public SDKInfo sdk = new SDKInfo();
-        public string sessionId;
         public ContextInfo context = new ContextInfo();
     }
 
@@ -200,6 +199,7 @@ namespace LoopKit
     public abstract class BaseEvent
     {
         public string anonymousId;
+        public string sessionId;
         public string timestamp;
         public string userId;
         public SystemInfo system = new SystemInfo();
