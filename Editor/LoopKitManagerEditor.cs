@@ -575,6 +575,23 @@ namespace LoopKit.Editor
                             new GUIContent("Network Tracking")
                         );
 
+                        EditorGUILayout.PropertyField(
+                            config.FindPropertyRelative("enableCameraSnapshots"),
+                            new GUIContent("Camera Snapshots")
+                        );
+                        using (
+                            new EditorGUI.DisabledScope(
+                                !config.FindPropertyRelative("enableCameraSnapshots").boolValue
+                            )
+                        )
+                        {
+                            EditorGUILayout.PropertyField(
+                                config.FindPropertyRelative("cameraSnapshotBufferSize"),
+                                new GUIContent("Upload Buffer Size")
+                            );
+                            // Upload rate is tied to capture cadence; no separate fields
+                        }
+
                         EditorGUILayout.Space(8);
 
                         // Performance Settings

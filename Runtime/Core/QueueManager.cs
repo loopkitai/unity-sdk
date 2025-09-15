@@ -23,6 +23,8 @@ namespace LoopKit.Core
         private Coroutine _flushCoroutine;
         private MonoBehaviour _coroutineRunner;
         private bool _isFlushInProgress;
+        private int _consecutiveFlushFailures;
+        private DateTime _nextFlushAllowedAt = DateTime.MinValue;
 
         // Payload structures for each endpoint
         [Serializable]
@@ -52,6 +54,7 @@ namespace LoopKit.Core
 
             _eventQueue = new List<object>();
             _isFlushInProgress = false;
+            _consecutiveFlushFailures = 0;
 
             // Load persisted events
             LoadPersistedEvents();
@@ -92,8 +95,18 @@ namespace LoopKit.Core
                 // Check if we should auto-flush
                 if (_eventQueue.Count >= _config.batchSize)
                 {
-                    _logger.Debug("Batch size reached, triggering flush");
-                    _ = FlushAsync(_networkManager);
+                    if (DateTime.UtcNow >= _nextFlushAllowedAt)
+                    {
+                        _logger.Debug("Batch size reached, triggering flush");
+                        _ = FlushAsync(_networkManager);
+                    }
+                    else
+                    {
+                        var remaining = (_nextFlushAllowedAt - DateTime.UtcNow).TotalSeconds;
+                        _logger.Debug(
+                            $"Flush gated by backoff for {Mathf.CeilToInt((float)remaining)}s"
+                        );
+                    }
                 }
             }
         }
@@ -112,6 +125,16 @@ namespace LoopKit.Core
             if (_isFlushInProgress)
             {
                 _logger.Debug("Flush already in progress, skipping");
+                return;
+            }
+
+            // Backoff gate to avoid hammering the API when it's down
+            if (DateTime.UtcNow < _nextFlushAllowedAt)
+            {
+                var waitSeconds = (_nextFlushAllowedAt - DateTime.UtcNow).TotalSeconds;
+                _logger.Debug(
+                    $"Flush attempt gated for {Mathf.CeilToInt((float)waitSeconds)}s due to previous failures"
+                );
                 return;
             }
 
@@ -185,10 +208,22 @@ namespace LoopKit.Core
                     }
 
                     _logger.Info($"Successfully flushed {eventsToFlush.Count} events");
+
+                    // Reset backoff on success
+                    _consecutiveFlushFailures = 0;
+                    _nextFlushAllowedAt = DateTime.MinValue;
                 }
                 else
                 {
                     _logger.Error($"Failed to flush events: one or more endpoint requests failed");
+
+                    // Increase backoff on failure
+                    _consecutiveFlushFailures = Math.Max(1, _consecutiveFlushFailures + 1);
+                    var delaySeconds = CalculateFlushBackoffSeconds(_consecutiveFlushFailures);
+                    _nextFlushAllowedAt = DateTime.UtcNow.AddSeconds(delaySeconds);
+                    _logger.Debug(
+                        $"Next flush allowed in {delaySeconds}s (consecutive failures: {_consecutiveFlushFailures})"
+                    );
 
                     // Events remain in queue for retry
                 }
@@ -196,11 +231,31 @@ namespace LoopKit.Core
             catch (Exception ex)
             {
                 _logger.Error("Exception during event flush", ex);
+
+                // Increase backoff on exception
+                _consecutiveFlushFailures = Math.Max(1, _consecutiveFlushFailures + 1);
+                var delaySeconds = CalculateFlushBackoffSeconds(_consecutiveFlushFailures);
+                _nextFlushAllowedAt = DateTime.UtcNow.AddSeconds(delaySeconds);
+                _logger.Debug(
+                    $"Next flush allowed in {delaySeconds}s after exception (consecutive failures: {_consecutiveFlushFailures})"
+                );
             }
             finally
             {
                 _isFlushInProgress = false;
             }
+        }
+
+        /// <summary>
+        /// Calculate exponential backoff for queue-level flush attempts
+        /// </summary>
+        private int CalculateFlushBackoffSeconds(int failureCount)
+        {
+            const int baseDelaySeconds = 2; // start at 2s
+            const int maxDelaySeconds = 60; // cap at 60s
+            var exponent = Math.Max(0, failureCount - 1);
+            var delay = baseDelaySeconds * (int)Mathf.Pow(2f, exponent);
+            return Mathf.Min(delay, maxDelaySeconds);
         }
 
         /// <summary>

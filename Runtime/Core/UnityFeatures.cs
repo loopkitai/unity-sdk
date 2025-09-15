@@ -34,6 +34,9 @@ namespace LoopKit.Core
         private float _lastNetworkCheckTime;
         private const float NETWORK_CHECK_INTERVAL = 5f; // Check every 5 seconds
 
+        // Camera snapshots
+        private CameraSnapshotService _cameraSnapshotService;
+
         public UnityFeatures(
             LoopKitConfig config,
             ILogger logger,
@@ -97,6 +100,12 @@ namespace LoopKit.Core
                 if (_config.enableNetworkTracking)
                 {
                     SetupNetworkTracking();
+                }
+
+                // Camera snapshots
+                if (_config.enableCameraSnapshots)
+                {
+                    SetupCameraSnapshots();
                 }
 
                 _isSetup = true;
@@ -248,6 +257,27 @@ namespace LoopKit.Core
             catch (Exception ex)
             {
                 _logger.Error("Failed to setup network tracking", ex);
+            }
+        }
+
+        /// <summary>
+        /// Setup periodic camera snapshots
+        /// </summary>
+        public void SetupCameraSnapshots()
+        {
+            try
+            {
+                if (_cameraSnapshotService == null)
+                {
+                    _cameraSnapshotService = new CameraSnapshotService(_config, _logger);
+                    _cameraSnapshotService.SetDependencies(_networkManager, _sessionManager);
+                }
+                _cameraSnapshotService.StartIfEnabled();
+                _logger.Debug("Camera snapshots enabled");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to setup camera snapshots", ex);
             }
         }
 
@@ -533,6 +563,18 @@ namespace LoopKit.Core
                 _isSetup = false;
                 SetupFeatures();
             }
+
+            // Update snapshot service configuration
+            if (_cameraSnapshotService == null)
+            {
+                _cameraSnapshotService = new CameraSnapshotService(config, _logger);
+                _cameraSnapshotService.SetDependencies(_networkManager, _sessionManager);
+                _cameraSnapshotService.StartIfEnabled();
+            }
+            else
+            {
+                _cameraSnapshotService.UpdateConfig(config);
+            }
         }
 
         /// <summary>
@@ -669,6 +711,12 @@ namespace LoopKit.Core
                 _eventTracker.Track("error", properties, null, null);
 
                 _logger.Debug($"Tracked error: {type} - {logString}");
+
+                // Attempt a debounced error snapshot
+                if (_config.enableCameraSnapshots && _cameraSnapshotService != null)
+                {
+                    _cameraSnapshotService.CaptureOnErrorIfAllowed();
+                }
             }
             catch (Exception ex)
             {
@@ -765,6 +813,13 @@ namespace LoopKit.Core
 
                 Application.focusChanged -= OnApplicationFocusChanged;
                 Application.quitting -= OnApplicationQuitting;
+
+                // Stop camera snapshots
+                if (_cameraSnapshotService != null)
+                {
+                    _cameraSnapshotService.Stop();
+                    _cameraSnapshotService = null;
+                }
 
                 _isSetup = false;
                 _logger.Debug("Unity features cleaned up");

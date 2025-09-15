@@ -179,6 +179,11 @@ namespace LoopKit
                         : _config.fpsReportInterval,
                 enableMemoryTracking = config.enableMemoryTracking,
                 enableNetworkTracking = config.enableNetworkTracking,
+                enableCameraSnapshots = config.enableCameraSnapshots,
+                cameraSnapshotInterval =
+                    config.cameraSnapshotInterval != 0
+                        ? config.cameraSnapshotInterval
+                        : _config.cameraSnapshotInterval,
                 enableLocalStorage = config.enableLocalStorage,
                 respectDoNotTrack = config.respectDoNotTrack,
                 debug = config.debug,

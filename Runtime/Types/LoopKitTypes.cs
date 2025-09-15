@@ -39,8 +39,8 @@ namespace LoopKit
 
         [Header("Batching and Performance")]
         [Tooltip("Number of events to batch before auto-flushing")]
-        [Range(1, 100)]
-        public int batchSize = 50;
+        [Range(1, 40)]
+        public int batchSize = 40;
 
         [Tooltip("Interval in seconds to auto-flush events")]
         [Range(1, 300)]
@@ -95,6 +95,24 @@ namespace LoopKit
 
         [Tooltip("Enable automatic network connectivity tracking")]
         public bool enableNetworkTracking = true;
+
+        [Header("Camera Snapshots")]
+        [Tooltip("Enable periodic snapshots from the main camera")]
+        public bool enableCameraSnapshots = false;
+
+        [Tooltip("Interval in seconds between camera snapshots")]
+        [Range(0.1f, 600f)]
+        public float cameraSnapshotInterval = 1f;
+
+        [Tooltip("Max number of snapshot images to keep in the upload buffer")]
+        [Range(1, 100)]
+        public int cameraSnapshotBufferSize = 10;
+
+        // Upload rate is tied 1:1 to capture interval
+
+        [Tooltip("Idle timeout in seconds before pausing periodic snapshots")]
+        [Range(10f, 86400f)]
+        public float cameraSnapshotIdleTimeoutSeconds = 300f;
 
         [Header("Storage and Privacy")]
         [Tooltip("Enable local storage for event persistence")]
