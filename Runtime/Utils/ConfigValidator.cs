@@ -26,6 +26,7 @@ namespace LoopKit.Utils
             ValidateBatchSettings(config);
             ValidateNetworkSettings(config);
             ValidateSessionSettings(config);
+            ValidateCameraSnapshotSettings(config);
         }
 
         /// <summary>
@@ -112,11 +113,12 @@ namespace LoopKit.Utils
                 );
             }
 
-            if (config.batchSize > 1000)
+            if (config.batchSize > 40)
             {
                 Debug.LogWarning(
-                    "[LoopKit] Large batch size may impact performance. Consider using a smaller value."
+                    "[LoopKit] Batch size capped at 40 to protect API; reducing provided value."
                 );
+                config.batchSize = 40;
             }
 
             if (config.flushInterval <= 0)
@@ -220,14 +222,32 @@ namespace LoopKit.Utils
                 return new LoopKitConfig();
 
             // Clamp values to safe ranges
-            config.batchSize = Mathf.Clamp(config.batchSize, 1, 1000);
+            config.batchSize = Mathf.Clamp(config.batchSize, 1, 40);
             config.flushInterval = Mathf.Clamp(config.flushInterval, 1f, 300f);
             config.maxQueueSize = Mathf.Max(config.maxQueueSize, config.batchSize);
             config.requestTimeout = Mathf.Clamp(config.requestTimeout, 1000, 60000);
             config.maxRetries = Mathf.Clamp(config.maxRetries, 0, 10);
             config.sessionTimeout = Mathf.Clamp(config.sessionTimeout, 60f, 7200f);
+            config.cameraSnapshotInterval = Mathf.Clamp(config.cameraSnapshotInterval, 1f, 600f);
 
             return config;
+        }
+
+        /// <summary>
+        /// Validate camera snapshot settings
+        /// </summary>
+        private static void ValidateCameraSnapshotSettings(LoopKitConfig config)
+        {
+            if (config.enableCameraSnapshots)
+            {
+                if (config.cameraSnapshotInterval <= 0)
+                {
+                    throw new ArgumentException(
+                        "Camera snapshot interval must be greater than 0",
+                        nameof(config.cameraSnapshotInterval)
+                    );
+                }
+            }
         }
     }
 }
