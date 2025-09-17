@@ -102,7 +102,21 @@ namespace LoopKit
 
         [Tooltip("Interval in seconds between camera snapshots")]
         [Range(1f, 600f)]
-        public float cameraSnapshotInterval = 30f;
+        public float cameraSnapshotInterval = 5f;
+
+        [Tooltip("Enable uploading camera snapshots to presigned URLs")]
+        public bool enableSnapshotUpload = false;
+
+        [Tooltip("Max number of snapshot images to keep in the upload buffer")]
+        [Range(1, 100)]
+        public int cameraSnapshotBufferSize = 10;
+
+        [Tooltip("Minimum seconds between uploads (rate limit)")]
+        [Range(0.1f, 60f)]
+        public float cameraSnapshotUploadMinInterval = 1f;
+
+        [Tooltip("Upload image extension for snapshots (png or webp)")]
+        public string cameraSnapshotUploadExt = "png";
 
         [Header("Storage and Privacy")]
         [Tooltip("Enable local storage for event persistence")]

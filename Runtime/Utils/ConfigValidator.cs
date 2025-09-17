@@ -229,6 +229,12 @@ namespace LoopKit.Utils
             config.maxRetries = Mathf.Clamp(config.maxRetries, 0, 10);
             config.sessionTimeout = Mathf.Clamp(config.sessionTimeout, 60f, 7200f);
             config.cameraSnapshotInterval = Mathf.Clamp(config.cameraSnapshotInterval, 1f, 600f);
+            config.cameraSnapshotBufferSize = Mathf.Clamp(config.cameraSnapshotBufferSize, 1, 100);
+            config.cameraSnapshotUploadMinInterval = Mathf.Clamp(
+                config.cameraSnapshotUploadMinInterval,
+                0.1f,
+                60f
+            );
 
             return config;
         }
@@ -246,6 +252,42 @@ namespace LoopKit.Utils
                         "Camera snapshot interval must be greater than 0",
                         nameof(config.cameraSnapshotInterval)
                     );
+                }
+
+                if (config.enableSnapshotUpload)
+                {
+                    if (config.cameraSnapshotBufferSize < 1)
+                    {
+                        throw new ArgumentException(
+                            "Buffer size must be at least 1",
+                            nameof(config.cameraSnapshotBufferSize)
+                        );
+                    }
+                    if (config.cameraSnapshotUploadMinInterval <= 0)
+                    {
+                        throw new ArgumentException(
+                            "Upload min interval must be greater than 0",
+                            nameof(config.cameraSnapshotUploadMinInterval)
+                        );
+                    }
+                    if (
+                        !string.Equals(
+                            config.cameraSnapshotUploadExt,
+                            "png",
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                        && !string.Equals(
+                            config.cameraSnapshotUploadExt,
+                            "webp",
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
+                    {
+                        Debug.LogWarning(
+                            "[LoopKit] cameraSnapshotUploadExt invalid; defaulting to 'png'"
+                        );
+                        config.cameraSnapshotUploadExt = "png";
+                    }
                 }
             }
         }

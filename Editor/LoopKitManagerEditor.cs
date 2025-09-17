@@ -575,6 +575,42 @@ namespace LoopKit.Editor
                             new GUIContent("Network Tracking")
                         );
 
+                        EditorGUILayout.PropertyField(
+                            config.FindPropertyRelative("enableCameraSnapshots"),
+                            new GUIContent("Camera Snapshots")
+                        );
+                        using (
+                            new EditorGUI.DisabledScope(
+                                !config.FindPropertyRelative("enableCameraSnapshots").boolValue
+                            )
+                        )
+                        {
+                            EditorGUILayout.PropertyField(
+                                config.FindPropertyRelative("enableSnapshotUpload"),
+                                new GUIContent("Upload Snapshots")
+                            );
+
+                            using (
+                                new EditorGUI.DisabledScope(
+                                    !config.FindPropertyRelative("enableSnapshotUpload").boolValue
+                                )
+                            )
+                            {
+                                EditorGUILayout.PropertyField(
+                                    config.FindPropertyRelative("cameraSnapshotBufferSize"),
+                                    new GUIContent("Upload Buffer Size")
+                                );
+                                EditorGUILayout.PropertyField(
+                                    config.FindPropertyRelative("cameraSnapshotUploadMinInterval"),
+                                    new GUIContent("Min Upload Interval (s)")
+                                );
+                                EditorGUILayout.PropertyField(
+                                    config.FindPropertyRelative("cameraSnapshotUploadExt"),
+                                    new GUIContent("Upload Extension (png/webp)")
+                                );
+                            }
+                        }
+
                         EditorGUILayout.Space(8);
 
                         // Performance Settings

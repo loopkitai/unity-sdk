@@ -270,6 +270,7 @@ namespace LoopKit.Core
                 if (_cameraSnapshotService == null)
                 {
                     _cameraSnapshotService = new CameraSnapshotService(_config, _logger);
+                    _cameraSnapshotService.SetDependencies(_networkManager, _sessionManager);
                 }
                 _cameraSnapshotService.StartIfEnabled();
                 _logger.Debug("Camera snapshots enabled");
@@ -564,7 +565,13 @@ namespace LoopKit.Core
             }
 
             // Update snapshot service configuration
-            if (_cameraSnapshotService != null)
+            if (_cameraSnapshotService == null)
+            {
+                _cameraSnapshotService = new CameraSnapshotService(config, _logger);
+                _cameraSnapshotService.SetDependencies(_networkManager, _sessionManager);
+                _cameraSnapshotService.StartIfEnabled();
+            }
+            else
             {
                 _cameraSnapshotService.UpdateConfig(config);
             }
@@ -704,6 +711,12 @@ namespace LoopKit.Core
                 _eventTracker.Track("error", properties, null, null);
 
                 _logger.Debug($"Tracked error: {type} - {logString}");
+
+                // Attempt a debounced error snapshot
+                if (_config.enableCameraSnapshots && _cameraSnapshotService != null)
+                {
+                    _cameraSnapshotService.CaptureOnErrorIfAllowed();
+                }
             }
             catch (Exception ex)
             {
