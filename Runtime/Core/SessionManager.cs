@@ -56,33 +56,9 @@ namespace LoopKit.Core
                 _logger.Debug("Loaded existing anonymous ID from storage");
             }
 
-            // Check for existing session
-            var existingSessionId = _storageManager.LoadSessionId();
-            var lastActivity = _storageManager.LoadLastActivity();
-
-            var now = DateTime.UtcNow;
-            var timeSinceLastActivity = now - lastActivity;
-
-            // Determine if we should continue existing session or start new one
-            if (
-                !string.IsNullOrEmpty(existingSessionId)
-                && lastActivity != DateTime.MinValue
-                && timeSinceLastActivity.TotalSeconds < _config.sessionTimeout
-            )
-            {
-                // Continue existing session
-                _currentSessionId = existingSessionId;
-                _sessionStartTime = lastActivity; // Use last activity as approximate session start
-                _lastActivity = now;
-
-                _logger.Info($"Continuing existing session: {_currentSessionId}");
-                UpdateActivity();
-            }
-            else
-            {
-                // Start new session
-                StartNewSession();
-            }
+            // Best practice: always start a new session on app launch (cold start)
+            // Fire session_start via public StartSession() to emit callback
+            StartSession();
         }
 
         /// <summary>

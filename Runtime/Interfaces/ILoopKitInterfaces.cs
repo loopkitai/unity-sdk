@@ -137,6 +137,16 @@ namespace LoopKit
         /// Clear all stored data
         /// </summary>
         void ClearAll();
+
+        /// <summary>
+        /// Persist last fetched remote settings JSON
+        /// </summary>
+        void SaveRemoteSettings(string json);
+
+        /// <summary>
+        /// Load last fetched remote settings JSON
+        /// </summary>
+        string LoadRemoteSettings();
     }
 
     /// <summary>

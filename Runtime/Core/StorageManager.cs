@@ -19,6 +19,7 @@ namespace LoopKit.Core
         private const string ANONYMOUS_ID_KEY = "LoopKit_AnonymousId";
         private const string SESSION_ID_KEY = "LoopKit_SessionId";
         private const string LAST_ACTIVITY_KEY = "LoopKit_LastActivity";
+        private const string REMOTE_SETTINGS_KEY = "LoopKit_RemoteSettings";
 
         public StorageManager(LoopKitConfig config, ILogger logger)
         {
@@ -257,6 +258,7 @@ namespace LoopKit.Core
                 PlayerPrefs.DeleteKey(ANONYMOUS_ID_KEY);
                 PlayerPrefs.DeleteKey(SESSION_ID_KEY);
                 PlayerPrefs.DeleteKey(LAST_ACTIVITY_KEY);
+                PlayerPrefs.DeleteKey(REMOTE_SETTINGS_KEY);
                 PlayerPrefs.Save();
 
                 _logger.Info("Cleared all LoopKit data from storage");
@@ -274,6 +276,37 @@ namespace LoopKit.Core
         {
             // Configuration updates are handled by the constructor reference
             _logger.Debug("Storage manager configuration updated");
+        }
+
+        public void SaveRemoteSettings(string json)
+        {
+            if (!_config.enableLocalStorage)
+                return;
+            try
+            {
+                PlayerPrefs.SetString(REMOTE_SETTINGS_KEY, json ?? "");
+                PlayerPrefs.Save();
+                _logger.Debug("Saved remote settings");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to save remote settings", ex);
+            }
+        }
+
+        public string LoadRemoteSettings()
+        {
+            if (!_config.enableLocalStorage)
+                return "";
+            try
+            {
+                return PlayerPrefs.GetString(REMOTE_SETTINGS_KEY, "");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to load remote settings", ex);
+                return "";
+            }
         }
 
         /// <summary>

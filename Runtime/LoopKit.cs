@@ -100,6 +100,9 @@ namespace LoopKit
                 _queueManager
             );
 
+            // Fetch remote settings before scheduling anything
+            TryFetchAndApplyRemoteSettings();
+
             // Cross-wire dependencies
             _queueManager.SetNetworkManager(_networkManager);
             _queueManager.ScheduleFlush();
@@ -126,6 +129,124 @@ namespace LoopKit
             );
 
             return this;
+        }
+
+        private async void TryFetchAndApplyRemoteSettings()
+        {
+            try
+            {
+                var endpoint = "/settings";
+                var resp = await _networkManager.SendEventsAsync(endpoint, new { }, 0);
+                if (
+                    resp != null
+                    && resp.success
+                    && resp.data is string json
+                    && !string.IsNullOrEmpty(json)
+                )
+                {
+                    // Persist and apply
+                    _storageManager.SaveRemoteSettings(json);
+                    ApplyRemoteSettings(json);
+                }
+                else
+                {
+                    // Try to load last settings if available (offline support)
+                    var cached = _storageManager.LoadRemoteSettings();
+                    if (!string.IsNullOrEmpty(cached))
+                    {
+                        ApplyRemoteSettings(cached);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn("Failed to fetch remote settings; applying cached if available", ex);
+                var cached = _storageManager.LoadRemoteSettings();
+                if (!string.IsNullOrEmpty(cached))
+                {
+                    ApplyRemoteSettings(cached);
+                }
+            }
+        }
+
+        private void ApplyRemoteSettings(string json)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(json))
+                    return;
+
+                var remote = JsonUtility.FromJson<RemoteSettingsDto>(json);
+                if (remote == null)
+                    return;
+
+                var newConfig = new LoopKitConfig
+                {
+                    apiKey = _config.apiKey,
+                    baseURL = string.IsNullOrEmpty(remote.baseURL)
+                        ? _config.baseURL
+                        : remote.baseURL,
+                    batchSize = remote.batchSize > 0 ? remote.batchSize : _config.batchSize,
+                    flushInterval =
+                        remote.flushInterval > 0 ? remote.flushInterval : _config.flushInterval,
+                    maxQueueSize =
+                        remote.maxQueueSize > 0 ? remote.maxQueueSize : _config.maxQueueSize,
+                    enableCompression = _config.enableCompression,
+                    requestTimeout = _config.requestTimeout,
+                    maxRetries = _config.maxRetries,
+                    retryBackoff = _config.retryBackoff,
+                    enableSessionTracking = _config.enableSessionTracking,
+                    sessionTimeout = _config.sessionTimeout,
+                    enableErrorTracking = _config.enableErrorTracking,
+                    enableSceneTracking = _config.enableSceneTracking,
+                    enableFpsTracking = _config.enableFpsTracking,
+                    fpsSampleInterval = _config.fpsSampleInterval,
+                    fpsReportInterval = _config.fpsReportInterval,
+                    enableMemoryTracking = _config.enableMemoryTracking,
+                    enableNetworkTracking = _config.enableNetworkTracking,
+                    enableLocalStorage = _config.enableLocalStorage,
+                    respectDoNotTrack = _config.respectDoNotTrack,
+                    debug = _config.debug,
+                    logLevel = _config.logLevel,
+                    onBeforeTrack = _config.onBeforeTrack,
+                    onAfterTrack = _config.onAfterTrack,
+                    onError = _config.onError,
+                    // Camera snapshot related
+                    enableCameraSnapshots =
+                        remote.enableCameraSnapshots ?? _config.enableCameraSnapshots,
+                    cameraSnapshotInterval =
+                        remote.cameraSnapshotInterval > 0
+                            ? remote.cameraSnapshotInterval
+                            : _config.cameraSnapshotInterval,
+                    cameraSnapshotBufferSize =
+                        remote.cameraSnapshotBufferSize > 0
+                            ? remote.cameraSnapshotBufferSize
+                            : _config.cameraSnapshotBufferSize,
+                    cameraSnapshotIdleTimeoutSeconds =
+                        remote.cameraSnapshotIdleTimeoutSeconds > 0
+                            ? remote.cameraSnapshotIdleTimeoutSeconds
+                            : _config.cameraSnapshotIdleTimeoutSeconds,
+                };
+
+                Configure(newConfig);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn("Failed to apply remote settings", ex);
+            }
+        }
+
+        [Serializable]
+        private class RemoteSettingsDto
+        {
+            public string baseURL;
+            public int batchSize;
+            public float flushInterval;
+            public int maxQueueSize;
+            public bool? enableCameraSnapshots;
+            public float cameraSnapshotInterval;
+            public int cameraSnapshotBufferSize;
+            public float cameraSnapshotIdleTimeoutSeconds;
         }
 
         /// <summary>
