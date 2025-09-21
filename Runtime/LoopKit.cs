@@ -15,12 +15,13 @@ namespace LoopKit
     public class LoopKit : ILoopKit
     {
         public const string VERSION = VersionInfo.VERSION;
-        private const string TRACKING_ENABLED_PREF_KEY = "LoopKit_TrackingEnabled";
+
+        // Consent flags are managed exclusively via Utils.ConsentManager
 
         // Core configuration
         private LoopKitConfig _config;
         private bool _initialized = false;
-        private bool _trackingEnabled = true; // Default value, will be loaded from prefs
+        private bool _trackingEnabled = false; // Privacy-first default; will be loaded from prefs
 
         // User context
         private string _userId;
@@ -75,8 +76,12 @@ namespace LoopKit
             ConfigValidator.Validate(_config);
             _config = ConfigValidator.Sanitize(_config);
 
-            // Load tracking state from PlayerPrefs (defaults to enabled if not set)
-            _trackingEnabled = PlayerPrefs.GetInt(TRACKING_ENABLED_PREF_KEY, 1) == 1;
+            // Load tracking state from consent manager (defaults to DISABLED if not set)
+            _trackingEnabled = ConsentManager.IsTrackingEnabled();
+
+            // Load snapshots consent (defaults to DISABLED if not set) and enforce on config
+            var snapshotsConsent = ConsentManager.IsCameraSnapshotsEnabled();
+            _config.enableCameraSnapshots = _config.enableCameraSnapshots && snapshotsConsent;
 
             // Initialize core components
             _logger = new Logger(_config);
@@ -112,7 +117,13 @@ namespace LoopKit
 
             // Setup Unity features
             _unityFeatures.SetNetworkManager(_networkManager);
-            _unityFeatures.SetupFeatures();
+            // Always wire minimal features (errors, app start)
+            _unityFeatures.SetupMinimalFeatures();
+            // Only set up auto-tracking features if tracking is enabled (opt-in)
+            if (_trackingEnabled)
+            {
+                _unityFeatures.SetupFeatures();
+            }
 
             _initialized = true;
 
@@ -211,9 +222,11 @@ namespace LoopKit
                     onBeforeTrack = _config.onBeforeTrack,
                     onAfterTrack = _config.onAfterTrack,
                     onError = _config.onError,
-                    // Camera snapshot related
-                    enableCameraSnapshots =
-                        remote.enableCameraSnapshots ?? _config.enableCameraSnapshots,
+                    // Camera snapshot related (server setting cannot override user consent)
+                    enableCameraSnapshots = (
+                        _config.enableCameraSnapshots
+                        && (remote.enableCameraSnapshots ?? _config.enableCameraSnapshots)
+                    ),
                     cameraSnapshotInterval =
                         remote.cameraSnapshotInterval > 0
                             ? remote.cameraSnapshotInterval
@@ -314,6 +327,11 @@ namespace LoopKit
                 onError = config.onError ?? _config.onError,
             };
 
+            // Enforce user consent for camera snapshots before finalizing
+            var snapshotsConsent = ConsentManager.IsCameraSnapshotsEnabled();
+            mergedConfig.enableCameraSnapshots =
+                mergedConfig.enableCameraSnapshots && snapshotsConsent;
+
             _config = ConfigValidator.Sanitize(mergedConfig);
 
             // Update all components
@@ -347,10 +365,25 @@ namespace LoopKit
             ThrowIfNotInitialized();
 
             _trackingEnabled = true;
-            PlayerPrefs.SetInt(TRACKING_ENABLED_PREF_KEY, 1);
-            PlayerPrefs.Save();
+            ConsentManager.SetTrackingEnabled(true);
 
             _logger.Info("Event tracking enabled and saved to preferences");
+
+            // Track consent change (always-collected)
+            try
+            {
+                var props = new Dictionary<string, object>
+                {
+                    ["consent_type"] = "tracking",
+                    ["enabled"] = true,
+                    ["method"] = "EnableTracking",
+                };
+                _eventTracker.TrackSystem("consent_changed", props, null, null);
+            }
+            catch { }
+
+            // Start Unity feature hooks now that tracking is enabled
+            _unityFeatures?.SetupFeatures();
 
             return this;
         }
@@ -363,10 +396,25 @@ namespace LoopKit
             ThrowIfNotInitialized();
 
             _trackingEnabled = false;
-            PlayerPrefs.SetInt(TRACKING_ENABLED_PREF_KEY, 0);
-            PlayerPrefs.Save();
+            ConsentManager.SetTrackingEnabled(false);
 
             _logger.Info("Event tracking disabled and saved to preferences");
+
+            // Track consent change (always-collected)
+            try
+            {
+                var props = new Dictionary<string, object>
+                {
+                    ["consent_type"] = "tracking",
+                    ["enabled"] = false,
+                    ["method"] = "DisableTracking",
+                };
+                _eventTracker.TrackSystem("consent_changed", props, null, null);
+            }
+            catch { }
+
+            // Remove Unity feature hooks and stop background services (e.g., snapshots)
+            _unityFeatures?.Cleanup();
 
             return this;
         }
@@ -555,16 +603,79 @@ namespace LoopKit
             _groupId = null;
             _groupProperties.Clear();
 
-            // Reset tracking state to default and save to prefs
-            _trackingEnabled = true;
-            PlayerPrefs.SetInt(TRACKING_ENABLED_PREF_KEY, 1);
-            PlayerPrefs.Save();
+            // Reset tracking state to privacy-first default (disabled) and save to prefs
+            _trackingEnabled = false;
+            ConsentManager.SetTrackingEnabled(false);
 
             // Reset components
             _queueManager?.Reset();
             _sessionManager?.Reset();
 
+            // Clean up Unity feature hooks/services
+            _unityFeatures?.Cleanup();
+
             _logger.Info("LoopKit SDK state reset complete");
+        }
+
+        /// <summary>
+        /// Enable camera snapshots (requires prior user consent and tracking as appropriate)
+        /// </summary>
+        public ILoopKit EnableCameraSnapshots()
+        {
+            ThrowIfNotInitialized();
+            _config.enableCameraSnapshots = true;
+            ConsentManager.SetCameraSnapshotsEnabled(true);
+            _unityFeatures?.UpdateConfig(_config);
+            _logger.Info("Camera snapshots enabled");
+
+            // Track consent change (always-collected)
+            try
+            {
+                var props = new Dictionary<string, object>
+                {
+                    ["consent_type"] = "camera_snapshots",
+                    ["enabled"] = true,
+                    ["method"] = "EnableCameraSnapshots",
+                };
+                _eventTracker.TrackSystem("consent_changed", props, null, null);
+            }
+            catch { }
+            return this;
+        }
+
+        /// <summary>
+        /// Disable camera snapshots
+        /// </summary>
+        public ILoopKit DisableCameraSnapshots()
+        {
+            ThrowIfNotInitialized();
+            _config.enableCameraSnapshots = false;
+            ConsentManager.SetCameraSnapshotsEnabled(false);
+            _unityFeatures?.UpdateConfig(_config);
+            _logger.Info("Camera snapshots disabled");
+
+            // Track consent change (always-collected)
+            try
+            {
+                var props = new Dictionary<string, object>
+                {
+                    ["consent_type"] = "camera_snapshots",
+                    ["enabled"] = false,
+                    ["method"] = "DisableCameraSnapshots",
+                };
+                _eventTracker.TrackSystem("consent_changed", props, null, null);
+            }
+            catch { }
+            return this;
+        }
+
+        /// <summary>
+        /// Check if camera snapshots are currently enabled (after consent and config)
+        /// </summary>
+        public bool AreCameraSnapshotsEnabled()
+        {
+            ThrowIfNotInitialized();
+            return _config.enableCameraSnapshots;
         }
 
         /// <summary>
@@ -574,7 +685,19 @@ namespace LoopKit
         {
             if (_config.enableSessionTracking)
             {
-                Track(eventName, properties);
+                // Session start/end are reliability signals and should always be collected
+                _eventTracker.TrackSystem(
+                    eventName,
+                    properties,
+                    null,
+                    new
+                    {
+                        userId = _userId,
+                        userProperties = _userProperties,
+                        groupId = _groupId,
+                        groupProperties = _groupProperties,
+                    }
+                );
             }
         }
 
@@ -627,6 +750,30 @@ namespace LoopKit
         public static bool IsTrackingEnabled()
         {
             return LoopKit.Instance.IsTrackingEnabled();
+        }
+
+        /// <summary>
+        /// Check if camera snapshots are enabled
+        /// </summary>
+        public static bool AreCameraSnapshotsEnabled()
+        {
+            return LoopKit.Instance.AreCameraSnapshotsEnabled();
+        }
+
+        /// <summary>
+        /// Enable camera snapshots (requires tracking to be enabled and user opt-in)
+        /// </summary>
+        public static ILoopKit EnableCameraSnapshots()
+        {
+            return LoopKit.Instance.EnableCameraSnapshots();
+        }
+
+        /// <summary>
+        /// Disable camera snapshots
+        /// </summary>
+        public static ILoopKit DisableCameraSnapshots()
+        {
+            return LoopKit.Instance.DisableCameraSnapshots();
         }
 
         /// <summary>

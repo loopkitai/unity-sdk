@@ -22,6 +22,7 @@ namespace LoopKit.Core
         private INetworkManager _networkManager;
         private bool _isSetup = false;
         private string _previousSceneName;
+        private bool _isMinimalSetup;
 
         // FPS tracking
         private List<float> _fpssamples;
@@ -75,6 +76,20 @@ namespace LoopKit.Core
 
             try
             {
+                // If global tracking is disabled, do not wire optional hooks
+                try
+                {
+                    if (!global::LoopKit.LoopKit.Instance.IsTrackingEnabled())
+                    {
+                        _logger.Debug("Tracking disabled; skipping optional Unity feature setup");
+                        return;
+                    }
+                }
+                catch
+                {
+                    return;
+                }
+
                 if (_config.enableSceneTracking)
                 {
                     SetupSceneTracking();
@@ -114,6 +129,31 @@ namespace LoopKit.Core
             catch (Exception ex)
             {
                 _logger.Error("Failed to setup Unity features", ex);
+            }
+        }
+
+        /// <summary>
+        /// Setup minimal features that must run regardless of opt-in status
+        /// (error/crash tracking and application lifecycle start event).
+        /// </summary>
+        public void SetupMinimalFeatures()
+        {
+            if (_isMinimalSetup)
+            {
+                _logger.Debug("Minimal Unity features already setup, skipping");
+                return;
+            }
+
+            try
+            {
+                SetupErrorTracking();
+                SetupApplicationLifecycleTracking();
+                _isMinimalSetup = true;
+                _logger.Info("Minimal Unity features setup completed");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to setup minimal Unity features", ex);
             }
         }
 
@@ -565,16 +605,25 @@ namespace LoopKit.Core
             }
 
             // Update snapshot service configuration
-            if (_cameraSnapshotService == null)
+            try
             {
-                _cameraSnapshotService = new CameraSnapshotService(config, _logger);
-                _cameraSnapshotService.SetDependencies(_networkManager, _sessionManager);
-                _cameraSnapshotService.StartIfEnabled();
+                if (_cameraSnapshotService == null)
+                {
+                    // Only create the service when tracking is enabled; config lives in LoopKit
+                    if (global::LoopKit.LoopKit.Instance.IsTrackingEnabled())
+                    {
+                        _cameraSnapshotService = new CameraSnapshotService(config, _logger);
+                        _cameraSnapshotService.SetDependencies(_networkManager, _sessionManager);
+                        _cameraSnapshotService.StartIfEnabled();
+                    }
+                }
+                else
+                {
+                    // Always keep service config up-to-date; it will internally start/stop per flag
+                    _cameraSnapshotService.UpdateConfig(config);
+                }
             }
-            else
-            {
-                _cameraSnapshotService.UpdateConfig(config);
-            }
+            catch { }
         }
 
         /// <summary>
@@ -638,6 +687,12 @@ namespace LoopKit.Core
                 if (hasFocus)
                 {
                     _sessionManager.UpdateActivity();
+                }
+
+                // Inform snapshot service of focus changes to pause/resume capture
+                if (_cameraSnapshotService != null)
+                {
+                    _cameraSnapshotService.SetFocusState(hasFocus);
                 }
             }
             catch (Exception ex)
@@ -706,9 +761,10 @@ namespace LoopKit.Core
                     ["log_type"] = type.ToString(),
                     ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                     ["scene"] = SceneManager.GetActiveScene().name,
+                    ["uncaught"] = type == LogType.Exception,
                 };
 
-                _eventTracker.Track("error", properties, null, null);
+                _eventTracker.TrackSystem("error", properties, null, null);
 
                 _logger.Debug($"Tracked error: {type} - {logString}");
 
@@ -721,7 +777,6 @@ namespace LoopKit.Core
             catch (Exception ex)
             {
                 // Be careful not to create infinite loop
-                Debug.LogError($"[LoopKit] Error in error tracking: {ex.Message}");
             }
         }
 
@@ -780,7 +835,7 @@ namespace LoopKit.Core
                 eventProperties["platform"] = Application.platform.ToString();
                 eventProperties["is_editor"] = Application.isEditor;
 
-                _eventTracker.Track(eventName, eventProperties, null, null);
+                _eventTracker.TrackSystem(eventName, eventProperties, null, null);
             }
             catch (Exception ex)
             {
@@ -819,6 +874,13 @@ namespace LoopKit.Core
                 {
                     _cameraSnapshotService.Stop();
                     _cameraSnapshotService = null;
+                }
+
+                // Destroy FPS tracker MonoBehaviour if present
+                var go = GameObject.Find("LoopKit_FPSTracker");
+                if (go != null)
+                {
+                    UnityEngine.Object.Destroy(go);
                 }
 
                 _isSetup = false;

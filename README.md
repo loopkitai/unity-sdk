@@ -2,7 +2,54 @@
 
 Unity SDK for LoopKit analytics platform. Track events, identify users, and manage sessions with comprehensive analytics support.
 
+## Privacy & Consent (Read First)
+
+- **Opt-in tracking**: The SDK initializes in a privacy-first mode with tracking disabled. You must call `LoopKitAPI.EnableTracking()` only after the player grants consent.
+- **Visual snapshots are optional**: Camera/screen snapshots are disabled by default and require a separate, explicit opt-in. Enable only after consent via `LoopKitAPI.EnableCameraSnapshots()`.
+- **Respect user choice**: Provide a clear way to withdraw consent at any time (`LoopKitAPI.DisableTracking()` and, if used, `LoopKitAPI.DisableCameraSnapshots()`).
+
+### Minimum privacy requirements
+
+- **Explicit consent** before any analytics or visual snapshots are sent.
+- **Plain-language disclosure** of what is collected (anonymous gameplay events, device/app context; optional visual snapshots of on-screen content) and why (improving the game).
+- **No collection of sensitive/PII** without a separate lawful basis and explicit consent. Avoid transmitting chat logs, personal data, or credentials in events or snapshots.
+- **Age-appropriate controls** and parental consent flows where required by law (e.g., COPPA, GDPR-K).
+- **Easy opt-out** and deletion upon request; persist the user’s preferences across sessions.
+- **Regional compliance**: Honor local regulations (GDPR/UK GDPR, CCPA/CPRA, etc.) and platform policies.
+
+### Example consent prompt text
+
+"I agree to share anonymous gameplay data, including visual snapshots, to help improve the game."
+
+### Consent-gated initialization (example)
+
+```csharp
+// Call after the player accepts your consent prompt
+LoopKit.LoopKitAPI.EnableTracking();
+
+// If you also ask for visual snapshot consent and the player agrees:
+LoopKit.LoopKitAPI.EnableCameraSnapshots();
+
+// If the player declines or withdraws:
+// LoopKit.LoopKitAPI.DisableTracking();
+// LoopKit.LoopKitAPI.DisableCameraSnapshots();
+```
+
+## Data collection overview
+
+- **Always collected (no opt-in needed)**:
+  - Basic system info (device type, OS version) attached to system events
+  - Application start
+  - Session start/end (reliability and stability only)
+  - Crash/error reports
+- **Opt-in (requires `EnableTracking`)**:
+  - Gameplay events and custom analytics
+  - Scene, FPS, memory, and network tracking
+  - Visual snapshots (also requires separate explicit consent)
+
 ## Installation
+
+> Important: Tracking is disabled by default and must be enabled only after player consent using `LoopKitAPI.EnableTracking()`. Do not enable tracking automatically.
 
 ### Method 1: Unity Package Manager (Git URL)
 
@@ -56,11 +103,12 @@ The easiest way to get started with LoopKit is using the LoopKitManager componen
 2. **Create a GameObject**: In your scene, create a new empty GameObject (right-click in Hierarchy → Create Empty)
 3. **Add LoopKitManager Component**: With the GameObject selected, click "Add Component" and search for "LoopKitManager"
 4. **Paste Your API Key**: In the LoopKitManager component, paste your API key from your LoopKit dashboard
-5. **Done!** LoopKit will automatically initialize and start tracking
+5. **Initialize**: LoopKit will initialize, but tracking remains OFF until enabled after user consent
+6. **Enable after consent**: When the player accepts, call `LoopKitAPI.EnableTracking()` (and optionally `LoopKitAPI.EnableCameraSnapshots()` if separately consented)
 
-### What You Get Automatically
+### What You Get Automatically (when tracking is enabled)
 
-Just by adding the LoopKitManager component, you automatically get these metrics tracked:
+Once tracking is enabled, you automatically get these metrics tracked:
 
 #### **Lifecycle Events**
 

@@ -324,6 +324,21 @@ namespace LoopKit
         );
 
         /// <summary>
+        /// Track a system event that should bypass the global tracking opt-in gate
+        /// (used for reliability/stability signals like crashes and session start/end).
+        /// </summary>
+        /// <param name="eventName">Event name</param>
+        /// <param name="properties">Event properties</param>
+        /// <param name="options">Tracking options</param>
+        /// <param name="userContext">User context</param>
+        void TrackSystem(
+            string eventName,
+            Dictionary<string, object> properties,
+            TrackOptions options,
+            object userContext
+        );
+
+        /// <summary>
         /// Create identify event
         /// </summary>
         /// <param name="userId">User ID</param>

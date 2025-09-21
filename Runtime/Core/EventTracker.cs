@@ -44,6 +44,20 @@ namespace LoopKit.Core
             object userContext
         )
         {
+            // Respect global tracking toggle
+            try
+            {
+                if (!global::LoopKit.LoopKit.Instance.IsTrackingEnabled())
+                {
+                    return;
+                }
+            }
+            catch
+            {
+                // If LoopKit not initialized yet, do not track
+                return;
+            }
+
             if (string.IsNullOrEmpty(eventName))
             {
                 _logger.Warn("Event name cannot be null or empty");
@@ -94,6 +108,80 @@ namespace LoopKit.Core
                 _logger.Error($"Failed to track event: {eventName}", ex);
 
                 // Call error callback if configured
+                if (_config.onError != null)
+                {
+                    try
+                    {
+                        _config.onError(ex);
+                    }
+                    catch (Exception callbackEx)
+                    {
+                        _logger.Error("Error in onError callback", callbackEx);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Track a system event bypassing the global tracking gate.
+        /// Intended for reliability/stability signals (e.g., crashes, session start/end).
+        /// </summary>
+        public void TrackSystem(
+            string eventName,
+            Dictionary<string, object> properties,
+            TrackOptions options,
+            object userContext
+        )
+        {
+            if (string.IsNullOrEmpty(eventName))
+            {
+                _logger.Warn("Event name cannot be null or empty");
+                return;
+            }
+
+            try
+            {
+                var trackEvent = CreateTrackEvent(eventName, properties, options, userContext);
+
+                // Apply callback if configured
+                if (_config.onBeforeTrack != null)
+                {
+                    try
+                    {
+                        var modifiedEvent = _config.onBeforeTrack(trackEvent);
+                        if (modifiedEvent != null)
+                        {
+                            trackEvent = modifiedEvent;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error("Error in onBeforeTrack callback", ex);
+                    }
+                }
+
+                _queueManager.EnqueueEvent(trackEvent);
+                _sessionManager.UpdateActivity();
+
+                _logger.Debug($"Tracked system event: {eventName}", properties);
+
+                // Apply after-track callback if configured
+                if (_config.onAfterTrack != null)
+                {
+                    try
+                    {
+                        _config.onAfterTrack(trackEvent, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error("Error in onAfterTrack callback", ex);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to track system event: {eventName}", ex);
+
                 if (_config.onError != null)
                 {
                     try

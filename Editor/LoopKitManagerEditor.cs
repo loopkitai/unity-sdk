@@ -666,6 +666,14 @@ namespace LoopKit.Editor
                         if (manager.IsConfigured)
                         {
                             EditorGUILayout.IntField("Queue Size", LoopKitAPI.GetQueueSize());
+                            EditorGUILayout.Toggle(
+                                "Tracking Enabled",
+                                LoopKitAPI.IsTrackingEnabled()
+                            );
+                            EditorGUILayout.Toggle(
+                                "Snapshots Enabled",
+                                LoopKitAPI.AreCameraSnapshotsEnabled()
+                            );
                         }
                         GUI.enabled = true;
 
@@ -693,6 +701,51 @@ namespace LoopKit.Editor
                                         }
                                     );
                                     Debug.Log("[LoopKit] Test event tracked from editor");
+                                }
+                            }
+
+                            using (new EditorGUILayout.HorizontalScope())
+                            {
+                                if (LoopKitAPI.IsTrackingEnabled())
+                                {
+                                    if (GUILayout.Button("Disable Tracking", GUILayout.Height(22)))
+                                    {
+                                        LoopKitAPI.DisableTracking();
+                                        Debug.Log(
+                                            "[LoopKit] Tracking disabled via editor runtime toggle"
+                                        );
+                                    }
+                                }
+                                else
+                                {
+                                    if (GUILayout.Button("Enable Tracking", GUILayout.Height(22)))
+                                    {
+                                        LoopKitAPI.EnableTracking();
+                                        Debug.Log(
+                                            "[LoopKit] Tracking enabled via editor runtime toggle"
+                                        );
+                                    }
+                                }
+
+                                if (LoopKitAPI.AreCameraSnapshotsEnabled())
+                                {
+                                    if (GUILayout.Button("Disable Snapshots", GUILayout.Height(22)))
+                                    {
+                                        LoopKitAPI.DisableCameraSnapshots();
+                                        Debug.Log(
+                                            "[LoopKit] Camera snapshots disabled via editor runtime toggle"
+                                        );
+                                    }
+                                }
+                                else
+                                {
+                                    if (GUILayout.Button("Enable Snapshots", GUILayout.Height(22)))
+                                    {
+                                        LoopKitAPI.EnableCameraSnapshots();
+                                        Debug.Log(
+                                            "[LoopKit] Camera snapshots enabled via editor runtime toggle"
+                                        );
+                                    }
                                 }
                             }
                         }
