@@ -1,0 +1,14 @@
+{
+  "name": "LoopKit",
+  "rootNamespace": "LoopKit",
+  "autoReferenced": true,
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

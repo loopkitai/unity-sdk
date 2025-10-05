@@ -25,7 +25,6 @@ namespace LoopKit.Editor
         private bool isNewerVersionAvailable = false;
         private string latestVersion = "";
         private bool versionCheckFailed = false;
-        private bool enableUpgradeDebugLog = true; // Default enabled
 
         [System.Serializable]
         private class SdkVersionsResponse
@@ -182,22 +181,15 @@ namespace LoopKit.Editor
                 {
                     isNewerVersionAvailable = true;
                     latestVersion = remoteVersion;
-
-                    if (enableUpgradeDebugLog)
-                    {
-                        Debug.Log(
-                            $"[LoopKit] A newer version ({remoteVersion}) is available! "
-                                + $"You're currently using version {localVersion}. "
-                                + $"Update via Package Manager or consider upgrading for the latest features and fixes."
-                        );
-                    }
+                    Debug.Log(
+                        $"[LoopKit] A newer version ({remoteVersion}) is available! "
+                            + $"You're currently using version {localVersion}. "
+                            + $"Update via Package Manager or consider upgrading for the latest features and fixes."
+                    );
                 }
                 else
                 {
-                    if (enableUpgradeDebugLog)
-                    {
-                        Debug.Log($"[LoopKit] You're using the latest version ({localVersion})");
-                    }
+                    // No update available; keep editor log quiet
                 }
             }
             catch (Exception ex)
@@ -389,6 +381,22 @@ namespace LoopKit.Editor
 
             EditorGUILayout.Space(10);
 
+            // Privacy & Consent Notice
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField(
+                    "Privacy & Consent",
+                    new GUIStyle(EditorStyles.boldLabel) { fontSize = 12 }
+                );
+                EditorGUILayout.Space(2);
+                EditorGUILayout.HelpBox(
+                    "Tracking is DISABLED by default and must be enabled from code AFTER the player explicitly consents. Call LoopKitAPI.EnableTracking() upon consent.\n\nCamera snapshots also require a separate explicit consent and MUST be enabled from code with LoopKitAPI.EnableCameraSnapshots(). The inspector toggles only define defaults and never override user consent.",
+                    MessageType.Warning
+                );
+            }
+
+            EditorGUILayout.Space(10);
+
             // API Configuration Section
             using (new EditorGUILayout.VerticalScope())
             {
@@ -575,23 +583,6 @@ namespace LoopKit.Editor
                             new GUIContent("Network Tracking")
                         );
 
-                        EditorGUILayout.PropertyField(
-                            config.FindPropertyRelative("enableCameraSnapshots"),
-                            new GUIContent("Camera Snapshots")
-                        );
-                        using (
-                            new EditorGUI.DisabledScope(
-                                !config.FindPropertyRelative("enableCameraSnapshots").boolValue
-                            )
-                        )
-                        {
-                            EditorGUILayout.PropertyField(
-                                config.FindPropertyRelative("cameraSnapshotBufferSize"),
-                                new GUIContent("Upload Buffer Size")
-                            );
-                            // Upload rate is tied to capture cadence; no separate fields
-                        }
-
                         EditorGUILayout.Space(8);
 
                         // Performance Settings
@@ -621,27 +612,6 @@ namespace LoopKit.Editor
                 }
 
                 EditorGUILayout.Space(5);
-
-                // Editor Settings
-                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-                {
-                    var subHeaderStyle = new GUIStyle(EditorStyles.boldLabel)
-                    {
-                        fontSize = 11,
-                        normal = { textColor = new Color(0.8f, 0.8f, 0.8f) },
-                    };
-
-                    GUILayout.Label("Editor Settings", subHeaderStyle);
-                    EditorGUILayout.Space(3);
-
-                    enableUpgradeDebugLog = EditorGUILayout.Toggle(
-                        new GUIContent(
-                            "Upgrade Debug Logs",
-                            "Show debug logs when checking for SDK updates"
-                        ),
-                        enableUpgradeDebugLog
-                    );
-                }
             }
 
             EditorGUILayout.Space(10);
@@ -723,27 +693,6 @@ namespace LoopKit.Editor
                                         LoopKitAPI.EnableTracking();
                                         Debug.Log(
                                             "[LoopKit] Tracking enabled via editor runtime toggle"
-                                        );
-                                    }
-                                }
-
-                                if (LoopKitAPI.AreCameraSnapshotsEnabled())
-                                {
-                                    if (GUILayout.Button("Disable Snapshots", GUILayout.Height(22)))
-                                    {
-                                        LoopKitAPI.DisableCameraSnapshots();
-                                        Debug.Log(
-                                            "[LoopKit] Camera snapshots disabled via editor runtime toggle"
-                                        );
-                                    }
-                                }
-                                else
-                                {
-                                    if (GUILayout.Button("Enable Snapshots", GUILayout.Height(22)))
-                                    {
-                                        LoopKitAPI.EnableCameraSnapshots();
-                                        Debug.Log(
-                                            "[LoopKit] Camera snapshots enabled via editor runtime toggle"
                                         );
                                     }
                                 }
